@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub NoDB Admin</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+            --info-bg: #eff6ff;
+            --info-text: #1e40af;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 950px;
+            background: var(--card);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: #fff;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Config Section */
+        .config-wrapper { margin-bottom: 24px; }
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            cursor: pointer;
+            border-bottom: 1px dashed var(--border);
+        }
+        .config-section {
+            background-color: var(--info-bg);
+            border: 1px solid #dbeafe;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+
+        input, select, textarea {
+            width: 100%; padding: 10px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;
+        }
+
+        button {
+            background-color: var(--primary); color: white; border: none;
+            padding: 12px; font-size: 14px; font-weight: 600; border-radius: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button.secondary { background-color: #64748b; }
+        button.danger { background-color: var(--error-text); }
+        button.edit-btn { background-color: #f59e0b; padding: 4px 8px; font-size: 11px; }
+
+        .status-msg { margin-top: 24px; padding: 16px; border-radius: 6px; display: none; font-size: 14px; }
+        .status-success { display: block; background-color: var(--success-bg); color: var(--success-text); }
+        .status-error { display: block; background-color: var(--error-bg); color: var(--error-text); }
+
+        /* Admin Login Overlay */
+        #adminLoginOverlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center;
+            justify-content: center; z-index: 1000;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 12px;
+            width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th { text-align: left; background: #f1f5f9; padding: 12px; border-bottom: 2px solid var(--border); }
+        td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-online { background: #dcfce7; color: #166534; }
+        .badge-offline { background: #fee2e2; color: #991b1b; }
+        .badge-maintenance { background: #fef3c7; color: #92400e; }
+
+        .loader {
+            border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            border-top: 2px solid #fff; width: 14px; height: 14px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginOverlay" class="hidden">
+        <div class="login-box">
+            <h2 style="margin-top:0; font-size: 18px;">Admin Login</h2>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 20px;">Please enter credentials to access the database.</p>
+            <div class="input-group">
+                <input type="text" id="adminUser" placeholder="Username">
+            </div>
+            <div class="input-group">
+                <input type="password" id="adminPass" placeholder="Password">
+            </div>
+            <button onclick="attemptLogin()" style="width:100%">Unlock Database</button>
+            <button onclick="hideLogin()" class="secondary" style="width:100%; margin-top:8px; background:none; color:var(--text-light);">Cancel</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1 id="pageTitle">Submit Data</h1>
+                <p id="pageSubtitle" style="font-size: 14px; color: var(--text-light); margin: 0;">Secure NoDB Management</p>
+            </div>
+            <div id="authStatus" style="font-size: 12px; color: var(--success-text); font-weight: 600;" class="hidden">
+                ✓ Admin Authenticated
+            </div>
+        </header>
+
+        <div class="tabs">
+            <div id="tabSubmit" class="tab-btn active" onclick="switchTab('submit')">Add Entry</div>
+            <div id="tabAdmin" class="tab-btn" onclick="switchTab('admin')">Admin Database</div>
+        </div>
+
+        <!-- Collapsible Configuration -->
+        <div class="config-wrapper">
+            <div class="config-header" onclick="toggleConfig()">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-light);">⚙️ GITHUB SETTINGS (Local Save)</span>
+                <span id="configToggleLabel" style="color: var(--primary); font-size: 12px;">Show</span>
+            </div>
+            <div id="configContent" class="config-section hidden">
+                <div class="grid">
+                    <input type="text" id="repoOwner" placeholder="GitHub Owner" onchange="saveSettings()">
+                    <input type="text" id="repoName" placeholder="Repo Name" onchange="saveSettings()">
+                    <input type="text" id="filePath" placeholder="data.json" onchange="saveSettings()">
+                    <input type="password" id="githubToken" placeholder="GitHub PAT" onchange="saveSettings()">
+                </div>
+            </div>
+        </div>
+
+        <!-- View 1: Submission Form -->
+        <div id="viewSubmit">
+            <form id="dataForm">
+                <div class="grid">
+                    <div class="input-group">
+                        <label>Entry Title</label>
+                        <input type="text" id="entryTitle" required placeholder="Name or ID">
+                    </div>
+                    <div class="input-group">
+                        <label>Status</label>
+                        <select id="entryStatus">
+                            <option value="Online">Online</option>
+                            <option value="Offline">Offline</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Notes</label>
+                    <textarea id="entryNotes" rows="2"></textarea>
+                </div>
+                <button type="submit" id="submitBtn">Submit Data</button>
+            </form>
+        </div>
+
+        <!-- View 2: Database Admin -->
+        <div id="viewAdmin" class="hidden">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
+                <button onclick="fetchDatabase()" class="secondary" style="font-size: 13px; padding: 6px 12px;">Refresh Database</button>
+                <div id="dbStats" style="font-size: 13px; color: var(--text-light);">No data</div>
+            </div>
+            <div class="table-container">
+                <table id="dbTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Title</th>
+                            <th style="width: 15%;">Status</th>
+                            <th>Notes</th>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 15%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbBody">
+                        <tr><td colspan="5" style="text-align:center;">Login and Refresh to view data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="statusMessage" class="status-msg"></div>
+    </div>
+
+    <script>
+        // CONFIGURABLE ADMIN CREDENTIALS
+        const ADMIN_USER = "admin";
+        const ADMIN_PASS = "1234";
+
+        let currentData = [];
+        let currentFileSha = null;
+        let isAdminLoggedIn = false;
+        let editingIndex = null;
+
+        window.onload = () => {
+            const saved = localStorage.getItem('github_config');
+            if (saved) {
+                const config = JSON.parse(saved);
+                document.getElementById('repoOwner').value = config.owner || '';
+                document.getElementById('repoName').value = config.repo || '';
+                document.getElementById('filePath').value = config.path || '';
+                document.getElementById('githubToken').value = config.token || '';
+            }
+        };
+
+        function saveSettings() {
+            const config = {
+                owner: document.getElementById('repoOwner').value,
+                repo: document.getElementById('repoName').value,
+                path: document.getElementById('filePath').value,
+                token: document.getElementById('githubToken').value
+            };
+            localStorage.setItem('github_config', JSON.stringify(config));
+        }
+
+        function toggleConfig() {
+            const content = document.getElementById('configContent');
+            const label = document.getElementById('configToggleLabel');
+            const isHidden = content.classList.toggle('hidden');
+            label.textContent = isHidden ? 'Show' : 'Hide';
+        }
+
+        // Authentication Logic
+        function switchTab(tab) {
+            if (tab === 'admin' && !isAdminLoggedIn) {
+                document.getElementById('adminLoginOverlay').classList.remove('hidden');
+                return;
+            }
+            
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('viewSubmit').classList.add('hidden');
+            document.getElementById('viewAdmin').classList.add('hidden');
+
+            if (tab === 'submit') {
+                document.getElementById('tabSubmit').classList.add('active');
+                document.getElementById('viewSubmit').classList.remove('hidden');
+                document.getElementById('pageTitle').textContent = "Submit Data";
+            } else {
+                document.getElementById('tabAdmin').classList.add('active');
+                document.getElementById('viewAdmin').classList.remove('hidden');
+                document.getElementById('pageTitle').textContent = "Admin Database";
+                fetchDatabase();
+            }
+        }
+
+        function attemptLogin() {
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if (u === ADMIN_USER && p === ADMIN_PASS) {
+                isAdminLoggedIn = true;
+                document.getElementById('authStatus').classList.remove('hidden');
+                hideLogin();
+                switchTab('admin');
+            } else {
+                alert('Invalid Credentials');
+            }
+        }
+
+        function hideLogin() {
+            document.getElementById('adminLoginOverlay').classList.add('hidden');
+            document.getElementById('adminUser').value = '';
+            document.getElementById('adminPass').value = '';
+        }
+
+        // Database Operations
+        async function fetchDatabase() {
+            const owner = document.getElementById('repoOwner').value.trim();
+            const repo = document.getElementById('repoName').value.trim();
+            const path = document.getElementById('filePath').value.trim();
+            const token = document.getElementById('githubToken').value.trim();
+
+            if (!owner || !token) {
+                showStatus('Enter GitHub settings in the config panel.', 'error');
+                return;
+            }
+
+            const dbBody = document.getElementById('dbBody');
+            dbBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Connecting to GitHub...</td></tr>';
+
+            try {
+                const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+                const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+                
+                if (res.ok) {
+                    const fileData = await res.json();
+                    currentFileSha = fileData.sha;
+                    const content = atob(fileData.content.replace(/\s/g, ''));
+                    currentData = JSON.parse(content);
+                    renderTable();
+                } else if (res.status === 404) {
+                    dbBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">File not found on GitHub.</td></tr>';
+                }
+            } catch (err) {
+                showStatus('Fetch Error: ' + err.message, 'error');
+            }
+        }
+
+        function renderTable() {
+            const dbBody = document.getElementById('dbBody');
+            document.getElementById('dbStats').textContent = `${currentData.length} total entries`;
+            
+            dbBody.innerHTML = currentData.map((item, index) => {
+                const isEditing = editingIndex === index;
+                const date = new Date(item.timestamp).toLocaleDateString();
+
+                if (isEditing) {
+                    return `
+                        <tr>
+                            <td><input type="text" id="editTitle" value="${item.title}"></td>
+                            <td>
+                                <select id="editStatus">
+                                    <option value="Online" ${item.status==='Online'?'selected':''}>Online</option>
+                                    <option value="Offline" ${item.status==='Offline'?'selected':''}>Offline</option>
+                                    <option value="Maintenance" ${item.status==='Maintenance'?'selected':''}>Maintenance</option>
+                                </select>
+                            </td>
+                            <td><input type="text" id="editNotes" value="${item.notes || ''}"></td>
+                            <td>${date}</td>
+                            <td style="display:flex; gap:4px;">
+                                <button onclick="saveEdit(${index})" style="background:#10b981; padding:4px 8px; font-size:10px;">Save</button>
+                                <button onclick="cancelEdit()" style="background:#6b7280; padding:4px 8px; font-size:10px;">X</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td><strong>${item.title}</strong></td>
+                        <td><span class="badge badge-${item.status.toLowerCase()}">${item.status}</span></td>
+                        <td style="color:var(--text-light);">${item.notes || '-'}</td>
+                        <td style="font-size:11px;">${date}</td>
+                        <td style="display:flex; gap:4px;">
+                            <button class="edit-btn" onclick="startEdit(${index})">Edit</button>
+                            <button onclick="deleteItem(${index})" style="background:var(--error-text); padding: 4px 8px; font-size:11px;">Del</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Edit / Update Logic
+        function startEdit(index) {
+            editingIndex = index;
+            renderTable();
+        }
+
+        function cancelEdit() {
+            editingIndex = null;
+            renderTable();
+        }
+
+        async function saveEdit(index) {
+            currentData[index].title = document.getElementById('editTitle').value;
+            currentData[index].status = document.getElementById('editStatus').value;
+            currentData[index].notes = document.getElementById('editNotes').value;
+            
+            editingIndex = null;
+            await pushToGitHub("Admin: Edited entry");
+            renderTable();
+        }
+
+        async function deleteItem(index) {
+            if (!confirm('Permanently delete this item?')) return;
+            currentData.splice(index, 1);
+            await pushToGitHub("Admin: Deleted entry");
+            renderTable();
+        }
+
+        async function pushToGitHub(commitMsg) {
+            const owner = document.getElementById('repoOwner').value;
+            const repo = document.getElementById('repoName').value;
+            const path = document.getElementById('filePath').value;
+            const token = document.getElementById('githubToken').value;
+            const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+            try {
+                const updatedContent = btoa(unescape(encodeURIComponent(JSON.stringify(currentData, null, 2))));
+                const putRes = await fetch(url, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: commitMsg, content: updatedContent, sha: currentFileSha })
+                });
+
+                if (putRes.ok) {
+                    const resJson = await putRes.json();
+                    currentFileSha = resJson.content.sha;
+                    showStatus('Changes saved to GitHub', 'success');
+                } else { throw new Error('Update failed'); }
+            } catch (err) { showStatus(err.message, 'error'); }
+        }
+
+        // New Submission Logic
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const owner = document.getElementById('repoOwner').value;
+            const token = document.getElementById('githubToken').value;
+
+            if (!owner || !token) { showStatus('Config missing!', 'error'); return; }
+
+            const newEntry = {
+                title: document.getElementById('entryTitle').value,
+                status: document.getElementById('entryStatus').value,
+                notes: document.getElementById('entryNotes').value,
+                timestamp: new Date().toISOString()
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loader"></div> Processing...';
+
+            try {
+                // Refresh local data first to avoid SHA mismatch
+                await fetchDatabase();
+                currentData.push(newEntry);
+                await pushToGitHub("User: New submission");
+                document.getElementById('dataForm').reset();
+            } catch (err) { showStatus(err.message, 'error'); } 
+            finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Data';
+            }
+        });
+
+        function showStatus(text, type) {
+            statusMsg.textContent = text;
+            statusMsg.className = `status-msg ${type === 'success' ? 'status-success' : 'status-error'}`;
+            setTimeout(() => { statusMsg.className = 'status-msg'; }, 3000);
+        }
+    </script>
+</body>
+</html>
+
