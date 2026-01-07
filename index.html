@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub NoDB Submitter</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+            --info-bg: #eff6ff;
+            --info-text: #1e40af;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+        }
+
+        h1 { margin: 0; font-size: 24px; font-weight: 700; }
+        p.subtitle { margin: 4px 0 0; font-size: 14px; color: var(--text-light); }
+
+        .config-section {
+            background-color: var(--info-bg);
+            border: 1px solid #dbeafe;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .config-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--info-text);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .helper-text { font-size: 10px; color: var(--info-text); font-style: italic; margin-top: 8px; }
+
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .status-msg {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 6px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .status-success { display: block; background-color: var(--success-bg); color: var(--success-text); }
+        .status-error { display: block; background-color: var(--error-bg); color: var(--error-text); }
+
+        .loader {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 2px solid #fff;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GitHub JSON Submitter</h1>
+            <p class="subtitle">Submit data to a JSON file in your repo without a database.</p>
+        </header>
+
+        <div class="config-section">
+            <span class="config-title">GitHub Settings</span>
+            <div class="grid">
+                <input type="text" id="repoOwner" placeholder="Owner (username)">
+                <input type="text" id="repoName" placeholder="Repo Name">
+                <input type="text" id="filePath" placeholder="data.json">
+                <input type="password" id="githubToken" placeholder="Personal Access Token">
+            </div>
+            <p class="helper-text">Token requires 'repo' scope. Data is processed locally in your browser.</p>
+        </div>
+
+        <form id="dataForm">
+            <div class="input-group">
+                <label>Entry Title</label>
+                <input type="text" id="entryTitle" required placeholder="e.g., Web Server 01">
+            </div>
+            <div class="input-group">
+                <label>Status</label>
+                <select id="entryStatus">
+                    <option value="Online">Online</option>
+                    <option value="Offline">Offline</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Pending">Pending</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Notes</label>
+                <textarea id="entryNotes" rows="3" placeholder="Additional details..."></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                <span>Submit to GitHub</span>
+            </button>
+        </form>
+
+        <div id="statusMessage" class="status-msg"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('dataForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMsg = document.getElementById('statusMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const owner = document.getElementById('repoOwner').value.trim();
+            const repo = document.getElementById('repoName').value.trim();
+            const path = document.getElementById('filePath').value.trim();
+            const token = document.getElementById('githubToken').value.trim();
+
+            if (!owner || !repo || !path || !token) {
+                showStatus('Please fill in all GitHub settings.', 'error');
+                return;
+            }
+
+            const newEntry = {
+                title: document.getElementById('entryTitle').value,
+                status: document.getElementById('entryStatus').value,
+                notes: document.getElementById('entryNotes').value,
+                timestamp: new Date().toISOString()
+            };
+
+            setLoading(true);
+
+            try {
+                const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+                let currentSha = null;
+                let existingData = [];
+
+                const getResponse = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+
+                if (getResponse.ok) {
+                    const fileData = await getResponse.json();
+                    currentSha = fileData.sha;
+                    const content = atob(fileData.content.replace(/\s/g, ''));
+                    existingData = JSON.parse(content);
+                } else if (getResponse.status !== 404) {
+                    throw new Error('Check repo settings or token permissions.');
+                }
+
+                if (!Array.isArray(existingData)) existingData = [];
+                existingData.push(newEntry);
+
+                const updatedContent = btoa(unescape(encodeURIComponent(JSON.stringify(existingData, null, 2))));
+                
+                const putBody = {
+                    message: `Data update via web form [${new Date().toLocaleDateString()}]`,
+                    content: updatedContent,
+                    sha: currentSha
+                };
+
+                const putResponse = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(putBody)
+                });
+
+                if (putResponse.ok) {
+                    showStatus('Success! Data pushed to GitHub.', 'success');
+                    form.reset();
+                } else {
+                    const errJson = await putResponse.json();
+                    throw new Error(errJson.message || 'Error updating file.');
+                }
+            } catch (err) {
+                showStatus(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function showStatus(text, type) {
+            statusMsg.textContent = text;
+            statusMsg.className = `status-msg ${type === 'success' ? 'status-success' : 'status-error'}`;
+        }
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="loader"></div> Processing...';
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Submit to GitHub</span>';
+            }
+        }
+    </script>
+</body>
+</html>
+
